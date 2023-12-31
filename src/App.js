@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import axios from 'axios';
-import openai from 'openai'; // Make sure to install the 'openai' package
+
 
 function App() {
   const [description, setDescription] = useState('');
@@ -11,55 +10,71 @@ function App() {
     setDescription(e.target.value);
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit();
+    }
+  };
+
+  const handleSubmit = async () => {
     setLoading(true);
 
     try {
       const modelId = 'gpt-3.5-turbo';
-      const prompt = description;
-      const maxTokens = 4096;
-      const apiKey = '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'; 
+      const apiKey =process.env.API_URL;
+      const apiUrl = 'https://api.openai.com/v1/chat/completions';
 
-      openai.ChatCompletion.create(
-        {
-          model: modelId,
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
           messages: [
             { role: 'system', content: 'You are a helpful assistant.' },
-            { role: 'user', content: prompt },
+            { role: 'user', content: description },
           ],
-          max_tokens: maxTokens,
-        },
-        { headers: { Authorization: `Bearer ${apiKey}` } }
-      ).then((response) => {
-        setGeneratedReview(response.data.choices[0].message.content.trim());
+          max_tokens: 1000,
+          model: modelId,
+        }),
       });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+
+      const responseData = await response.json();
+      setGeneratedReview(responseData.choices[0].message.content.trim());
     } catch (error) {
-      console.error('Error generating review:', error);
+      console.error('Error:', error.message);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div>
-      <h2>Review Generator</h2>
-      <form onSubmit={handleSubmit}>
+    <div className='app'>
+      <h2>🕺 Bindaas Bot 🕺</h2>
+      <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
         <textarea
           value={description}
           onChange={handleChange}
-          placeholder="Enter your description details..."
+          onKeyDown={handleKeyDown}
+          placeholder="Enter your query here..."
           rows="5"
           cols="50"
         ></textarea>
         <br />
         <button type="submit" disabled={!description || loading}>
-          {loading ? 'Generating...' : 'Generate Review'}
+          {loading ? 'Searching' : 'Searched Result'}
         </button>
       </form>
+      <p className='saad'>Made by Saad Dastgir</p>
       {generatedReview && (
         <div>
-          <h3>Generated Review:</h3>
+          <h3>Searched Result:</h3>
           <p>{generatedReview}</p>
         </div>
       )}
